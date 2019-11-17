@@ -5,6 +5,12 @@ class Boundary{
     a = new PVector(x1, y1);
     b = new PVector(x2, y2);
   }
+  
+  Boundary(PVector a, PVector b, Boolean isGlass){
+    this.a = a;
+    this.b = b;
+    this.isGlass = isGlass;
+  }
   Boundary(float x1, float y1, float x2, float y2, Boolean isGlass){
     a = new PVector(x1, y1);
     b = new PVector(x2, y2);
