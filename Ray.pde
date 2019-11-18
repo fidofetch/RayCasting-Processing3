@@ -1,6 +1,8 @@
 class Ray{
   PVector pos, dir;
   color col;
+  float alpha = brightness;
+  float hue;
   float wavelength;
   float sat = 100;
   float b = 255;
@@ -8,6 +10,19 @@ class Ray{
     this.pos = pos;
     dir = PVector.fromAngle(angle);
     changeColor();
+    alpha = 100;
+  }
+  
+  Ray(PVector pos, float angle, float alpha, float hue){
+    this.pos = pos;
+    dir = PVector.fromAngle(angle);
+    this.alpha = alpha;
+    this.hue = hue;
+    changeColor(hue);
+  }
+  
+  public Ray copy(){
+    return new Ray(pos, dir.heading(), alpha, hue);
   }
   
   public void setDir(float angle){
@@ -15,16 +30,20 @@ class Ray{
   }
   
   public void changeColor(){
-    float hue = random(316);
+    hue = random(316);
+    changeColor(hue);
+  }
+  
+  public void changeColor(float hue){
     col = color(hue, sat, b);
-    wavelength = map(hue, 0, 316, 740, 380);
-    //Expand red side of the spectrum
     if(hue<40){
       wavelength = map(hue, 0, 40, 780, 650);
       col = color(0, sat, b);  
     }
-    else wavelength+=40;
+    else wavelength = map(hue, 40, 316, 650, 380);
+    //Expand red side of the spectrum
   }
+    
   
   public void offset(float angle){
     dir = getOffset(angle);

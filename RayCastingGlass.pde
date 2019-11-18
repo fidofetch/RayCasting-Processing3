@@ -19,10 +19,10 @@ int numGlasses = 0;
 
 float prevMX, prevMY;
 
-int traces = 100; //300
+int traces = 300; //300
 int traceCount = 0; 
-int maxBounces = 7; //20
-float brightness = 100; //500
+int maxBounces = 7; //7
+float brightness = 100; //100
 
 float renderTime = 0;
 float lastTime = 0;
@@ -66,7 +66,6 @@ void draw() {
 void mousePressed() {
   if (mouseButton == LEFT) {
     if (keyPressed && keyCode == CONTROL) {
-      println("control");
       building = true;
       buildGlass(mouseX, mouseY);
     } else {
@@ -86,7 +85,6 @@ void mousePressed() {
 void mouseDragged() {
   if (mouseButton == LEFT) {
     if (keyPressed && keyCode == CONTROL) {
-      println("control");
       building = true;
       buildGlass(mouseX, mouseY);
     } else {
@@ -196,18 +194,21 @@ public void generateGlass(int num) {
 }
 
 public void addPrism() {
-  Glass g = new Glass(width/2, height/2, 200, 200, 0, 6, true);
-  boundaries.addAll(g.boundaries);
-  for (Boundary b : g.boundaries) {
-    qTree.insert(new Line(b));
-  }
+  Boundary b1 = new Boundary(width/2-200, height/2-200, width/2+200, height/2-200, true);
+  Boundary b2 = new Boundary(width/2+200, height/2-200, width/2, height/2+200, true);
+  Boundary b3 = new Boundary(width/2, height/2+200, width/2-200, height/2-200, true);
+  boundaries.add(b1);
+  boundaries.add(b2);
+  boundaries.add(b3);
+  qTree.insert(new Line(b1));
+  qTree.insert(new Line(b2));
+  qTree.insert(new Line(b3));
 }
 
 public void buildGlass(float x, float y){
   if(building){
     bPoints.add(new PVector(x, y));
     if(firstBPoint == null) firstBPoint = new PVector(x, y);
-    println(firstBPoint);
     if(bPoints.size()>=2){
       Boundary b = new Boundary(lastBPoint, new PVector(x, y), true);
       qTree.insert(new Line(b));

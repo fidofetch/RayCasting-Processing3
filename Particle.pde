@@ -56,7 +56,7 @@ class Particle {
     isSpot = true;
     float dir = atan2(pt.y-rays.get(rays.size()/2).pos.y, pt.x-rays.get(rays.size()/2).pos.x);
     for (int i = 0; i<rays.size(); i++) {
-      rays.get(i).setDir(radians(i%20+random(-1, 1))+dir);
+      rays.get(i).setDir(radians(i%10+random(-1,1))+dir);
     }
   }
 
@@ -108,7 +108,7 @@ class Particle {
     //IOR of air
     float etai = 1;
     //IOR calculated using ORT
-    float IOR = 1.5;
+    float IOR = 1.62;
     float etat = IOR+((DP-ray.wavelength)*C)/(ABBE_GLASS*DP*ray.wavelength*ray.wavelength);
     if (iWall.isGlass) {
       /////////////////////////////////////////////////////////////////
@@ -155,8 +155,10 @@ class Particle {
     }
     //Should we split the ray due to fresnel
     int split = kr<1 && iWall.isGlass() && FRESNEL ? 2 : 1;
+    Ray[] rays = new Ray[split];
     
     for (int i = 0; i<split; i++) {
+      rays[i] = ray.copy();
       PVector closest = null;
       float record = 9999999;
       float angle = refractionA;
@@ -168,7 +170,7 @@ class Particle {
         //If we hit the same wall twice just ignore it
         if (wall.a.x == iWall.a.x && wall.a.y == iWall.a.y && wall.b.x == iWall.b.x && wall.b.y == iWall.b.y) continue;
 
-        pt = ray.bounce(prevCollision, angle+PI+noise, wall);
+        pt = rays[i].bounce(prevCollision, angle+PI+noise, wall);
 
 
         //If we hit something do a depth check
@@ -187,20 +189,21 @@ class Particle {
         if (kr<0)kr=-kr;
         if (!FRESNEL) kr = 1;
         //Lower our light per bounce
-        float alpha = map(bounces, 0, maxBounces, 1, brightness/1.5);
+        float alpha = rays[i].alpha/1.2;
         //Don't dim light that is transmitted
-        if (nWall.isGlass() || kr<1) alpha = map(bounces+1, 0, maxBounces, 1, brightness)*kr;
+        if (iWall.isGlass() || kr<1) alpha = map(kr, 0, 1, 0, alpha);
         
         stroke(ray.col, alpha);
         line(prevCollision.x, prevCollision.y, closest.x, closest.y);
         
         bounces--;
         int krBounces = bounces;
-        if (alpha<=1) {
-          alpha = 0;
+        rays[i].alpha = alpha;
+        if (ray.alpha<=1) {
+          rays[i].alpha = 0;
           krBounces = 0;
         }
-        trace(ray, walls, prevCollision, nWall, closest, krBounces);
+        trace(rays[i], walls, prevCollision, nWall, closest, krBounces);
       }
     }
     return;
