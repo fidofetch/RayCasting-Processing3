@@ -3,6 +3,10 @@ int ABBE_GLASS = 53;
 float DP = 589.3;
 int C = 500000;
 
+int WALL = 2;
+int GLASS = 1;
+int NOTHING = 0;
+
 //Line intersection
 
 public int orientation(PVector p, PVector q, PVector r) {

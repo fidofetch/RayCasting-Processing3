@@ -2,6 +2,7 @@ ArrayList<Boundary> boundaries = new ArrayList<Boundary>();
 ArrayList<PVector> bPoints = new ArrayList<PVector>();
 PVector lastBPoint;
 PVector firstBPoint;
+float prevX, prevY;
 Particle particle;
 QuadTree qTree;
 
@@ -12,7 +13,7 @@ boolean FRESNEL = true;
 boolean HUD = true;
 boolean NOISE = true;
 boolean QUADTREE = true;
-boolean building = false;
+int building = 0;
 
 int numWalls = 0;
 int numGlasses = 0;
@@ -32,7 +33,7 @@ void setup() {
   colorMode(HSB, 330, 255, 255, 3000);
   frameRate(100);
   particle = new Particle(10);  //10
-  qTree = new QuadTree(new Rectangle(width/2, height/2, width/2+20, height/2+20), 10);
+  qTree = new QuadTree(new Rectangle(width/2, height/2, width/2+20, height/2+20), 1);
 
   if (brightness<1) brightness = 1;
   //if(DEBUG_GLASS) glass.add(new Glass(600, 500, 200, 100, 0, 6, true));
@@ -66,14 +67,18 @@ void draw() {
 void mousePressed() {
   if (mouseButton == LEFT) {
     if (keyPressed && keyCode == CONTROL) {
-      building = true;
+      building = GLASS;
       buildGlass(mouseX, mouseY);
+    } else if (keyPressed && keyCode == SHIFT) {
+      building = WALL;
+      buildWall(mouseX, mouseY);
     } else {
       particle.move(mouseX, mouseY);
       traceCount = 0;
-      if(building){
-        building = false;
+      if (building>0) {
         buildGlass(-1, -1);
+        buildWall(-1, -1);
+        building = NOTHING;
       }
     }
   } else if (mouseButton == RIGHT) {
@@ -85,14 +90,18 @@ void mousePressed() {
 void mouseDragged() {
   if (mouseButton == LEFT) {
     if (keyPressed && keyCode == CONTROL) {
-      building = true;
+      building = GLASS;
       buildGlass(mouseX, mouseY);
+    } else if (keyPressed && keyCode == SHIFT) {
+      building = WALL;
+      buildWall(mouseX, mouseY);
     } else {
       particle.move(mouseX, mouseY);
       traceCount = 0;
-      if(building){
-        building = false;
+      if (building>0) {
         buildGlass(-1, -1);
+        buildWall(-1, -1);
+        building = NOTHING;
       }
     }
   }
@@ -205,20 +214,42 @@ public void addPrism() {
   qTree.insert(new Line(b3));
 }
 
-public void buildGlass(float x, float y){
-  if(building){
-    bPoints.add(new PVector(x, y));
-    if(firstBPoint == null) firstBPoint = new PVector(x, y);
-    if(bPoints.size()>=2){
-      Boundary b = new Boundary(lastBPoint, new PVector(x, y), true);
-      qTree.insert(new Line(b));
-      boundaries.add(b);
+public void buildGlass(float x, float y) {
+  if (building==GLASS && x>=0 && y>=0) {
+    if (x>prevX+10 || x<prevX-10 || y>prevY+10 ||y<prevY-10) {
+      prevX = x;
+      prevY = y;
+      bPoints.add(new PVector(x, y));
+      if (firstBPoint == null) firstBPoint = new PVector(x, y);
+      if (bPoints.size()>=2) {
+        Boundary b = new Boundary(lastBPoint, new PVector(x, y), true);
+        qTree.insert(new Line(b));
+        boundaries.add(b);
+      }
+      lastBPoint = new PVector(x, y);
     }
-    lastBPoint = new PVector(x, y);
-  }
-  else{
-    if(firstBPoint != null && lastBPoint != null)
+  } else if (building==GLASS) {
+    if (firstBPoint != null && lastBPoint != null)
       boundaries.add(new Boundary(lastBPoint, firstBPoint, true));
+    lastBPoint = null;
+    firstBPoint = null;
+    bPoints.clear();
+  }
+}
+public void buildWall(float x, float y) {
+  if (building==WALL && x>=0 && y>=0) {
+    if (x>prevX+10 || x<prevX-10 || y>prevY+10 ||y<prevY-10) {
+      prevX = x;
+      prevY = y;
+      bPoints.add(new PVector(x, y));
+      if (bPoints.size()>=2) {
+        Boundary b = new Boundary(lastBPoint, new PVector(x, y));
+        qTree.insert(new Line(b));
+        boundaries.add(b);
+      }
+      lastBPoint = new PVector(x, y);
+    }
+  } else if (building==WALL) {
     lastBPoint = null;
     firstBPoint = null;
     bPoints.clear();
@@ -228,9 +259,9 @@ public void buildGlass(float x, float y){
 
 public void drawHUD() {
   fill(0);
-  rect(0, 0, 120, 130);
-  rect(width/2-100, 0, 200, 30);
-  rect(width-120, 0, width, 210);
+  rect(0, 0, 120, 130);//Stats
+  rect(width/2-100, 0, 200, 30);//RenderTime
+  rect(width-180, 0, width, 240);//Controls
   fill(255);
   text("Render Time: "+(int)(renderTime/1000)+"s", width/2-50, 20);
   text("FPS: "+(int)frameRate, 5, 20);
@@ -239,5 +270,6 @@ public void drawHUD() {
   text("QUADTREE: "+QUADTREE, 5, 80);
   text("BOUNCES: "+maxBounces, 5, 100);
   text("TRACES: "+traceCount+"/"+traces, 5, 120);
-  text("LEFT CLICK: Move\nRIGHT CLICK: Point\nUP/DOWN: Traces\n+/-: Bounces\nC: Clear\nR: Reset Traces\nT: Point/Spot\nW: Generate Wall\nG: Generate Glass\nP: Load Prism\nF: Fresnel\nN: Noise\nQ: Quadtree\nH: HUD ON/OFF", width-115, 20);
+  text("LEFT CLICK: Move\nRIGHT CLICK: Point\nCTRL+LCLICK: Add Glass\nSHIFT+RCLICK: Add Wall\nUP/DOWN: Traces\n+/-: Bounces\nC: Clear\nR: Reset Traces\nT: Point/Spot\nW: Generate Wall\nG: Generate Glass\nP: Load Prism\nF: Fresnel"+
+    "\nN: Noise\nQ: Quadtree\nH: HUD ON/OFF", width-175, 20);
 }

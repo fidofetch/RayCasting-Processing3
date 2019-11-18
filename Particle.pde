@@ -169,10 +169,7 @@ class Particle {
         PVector pt = null;
         //If we hit the same wall twice just ignore it
         if (wall.a.x == iWall.a.x && wall.a.y == iWall.a.y && wall.b.x == iWall.b.x && wall.b.y == iWall.b.y) continue;
-
         pt = rays[i].bounce(prevCollision, angle+PI+noise, wall);
-
-
         //If we hit something do a depth check
         if (pt!=null) {
           float d = PVector.dist(prevCollision, pt);
