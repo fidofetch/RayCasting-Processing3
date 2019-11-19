@@ -32,7 +32,7 @@ class Boundary{
   
   public void show(){
     if(material == NOTHING) return;
-    if(material == GLASS)stroke(150);
+    if(material == WALL)stroke(150);
     else stroke(150, 100, 255);
     line(a.x, a.y, b.x, b.y);
   }

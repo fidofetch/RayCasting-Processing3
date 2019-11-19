@@ -1,5 +1,7 @@
 //Constants
 int ABBE_GLASS = 53;
+float GLASS_IOR = 1.63;
+float AIR_IOR = 1;
 float DP = 589.3;
 int C = 500000;
 

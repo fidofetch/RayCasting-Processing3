@@ -3,7 +3,10 @@ ArrayList<PVector> bPoints = new ArrayList<PVector>();
 PVector lastBPoint;
 PVector firstBPoint;
 float prevX, prevY;
-Particle particle;
+
+Light[] lights = new Light[3];
+int selectedLight = 0;
+
 QuadTree qTree;
 
 boolean DEBUG_NORMAL = false;
@@ -32,7 +35,12 @@ void setup() {
   size(1400, 1000);
   colorMode(HSB, 330, 255, 255, 3000);
   frameRate(100);
-  particle = new Particle(10);  //10
+  lights[0] = new SpotLight(20);  //10
+  lights[0].setMovable(true);
+  lights[1] = new PointLight(10);
+  lights[1].setMovable(true);
+  lights[2] = new AreaLight(width/2, height/2, width/2 +100, 0);
+  
   qTree = new QuadTree(new Rectangle(width/2, height/2, width/2+50, height/2+50), 1);
 
   if (brightness<1) brightness = 1;
@@ -52,10 +60,13 @@ void draw() {
     wall.show();
   }
   if (traceCount<traces) {
-    particle.update();
-    particle.look();
+    lights[selectedLight].update();
+    lights[selectedLight].look();
+    
     traceCount++;
+    
     if (DEBUG_QUADTREE)qTree.show();
+    
     renderTime+=millis()-lastTime;
     lastTime = millis();
   }
@@ -72,18 +83,10 @@ void mousePressed() {
       building = WALL;
       buildWall(mouseX, mouseY);
     } else {
-      particle.move(mouseX, mouseY);
       traceCount = 0;
-      if (building>0) {
-        buildGlass(-1, -1);
-        buildWall(-1, -1);
-        building = NOTHING;
-      }
     }
-  } else if (mouseButton == RIGHT) {
-    particle.pointAt(new PVector(mouseX, mouseY));
-    traceCount = 0;
   }
+  lights[selectedLight].mousePressed();
 }
 
 void mouseDragged() {
@@ -95,26 +98,30 @@ void mouseDragged() {
       building = WALL;
       buildWall(mouseX, mouseY);
     } else {
-      particle.move(mouseX, mouseY);
       traceCount = 0;
-      if (building>0) {
-        buildGlass(-1, -1);
-        buildWall(-1, -1);
-        building = NOTHING;
-      }
     }
   }
   if (mouseButton == RIGHT) {
-    particle.pointAt(new PVector(mouseX, mouseY));
     traceCount = 0;
+  }
+  lights[selectedLight].mouseDragged();
+}
+void mouseReleased(){
+  lights[selectedLight].mouseReleased();
+}
+void keyReleased(){
+  if(building>0){
+    buildGlass(-1, -1);
+    buildWall(-1, -1);
+    building = NOTHING;
   }
 }
 
 void keyPressed() {
   if (keyCode == UP) traces++;
-  if (keyCode == DOWN){
+  if (keyCode == DOWN) {
     traces--;
-    if(traces<1)traces = 1;
+    if (traces<1)traces = 1;
   }
   if (keyCode == LEFT) qTree.cap--;
   if (keyCode == RIGHT) qTree.cap++;
@@ -126,37 +133,23 @@ void keyPressed() {
   }
   if (key == 'W' || key == 'w') generateWalls(1);
   if (key == 'G' || key == 'g') generateGlass(1);
-  if (key == 'P' || key == 'p') {
-    clearScreen();
-    background(0);
-    traceCount = 0;
-    generateBorder();
-    particle.pos.set(710, 31);
-    particle.isSpot = true;
-    for (int i = 0; i<particle.rays.size(); i++) {
-      particle.rays.get(i).setDir(radians(i%20+random(-1, 1))+1.1446055);
-    }
-    FRESNEL = false;
-    addPrism();
-  }
-
   if (key == 'H' || key == 'h') HUD = !HUD;
   if (key == 'R' || key == 'r') traceCount = 0;
-  if (key == 'T' || key == 't') particle.setSpot();
   if (key == 'F' || key == 'f') FRESNEL = !FRESNEL;
   if (key == 'N' || key == 'n') NOISE = !NOISE;
   if (key == 'Q' || key == 'q') QUADTREE = !QUADTREE;
+  if (key == 'T' || key == 't') selectedLight = (selectedLight+1)%3;
   if (key == 'D' || key == 'd') {
     traceCount = 0;
-    if(DEBUG == 0){
+    if (DEBUG == 0) {
       DEBUG=1;
       DEBUG_NORMAL = true;
       DEBUG_QUADTREE = false;
-    }else if(DEBUG == 1){
+    } else if (DEBUG == 1) {
       DEBUG = 2;
       DEBUG_NORMAL = false;
       DEBUG_QUADTREE = true;
-    }else if(DEBUG == 2){
+    } else if (DEBUG == 2) {
       DEBUG = 0;
       DEBUG_NORMAL = false;
       DEBUG_QUADTREE = false;
@@ -165,7 +158,7 @@ void keyPressed() {
   if (key == '+') maxBounces++;
   if (key == '-') {
     maxBounces--;
-    if(maxBounces<0) maxBounces = 0;
+    if (maxBounces<0) maxBounces = 0;
   }
   if (key == ' ') {
     clearScreen();
@@ -196,7 +189,7 @@ public void generateWalls(int num) {
 public void generateBorder() {
   Boundary b1 = new Boundary(5, 5, width-5, 5, WALL);
   Boundary b2 = new Boundary(5, 5, 5, height-5, WALL);
-  Boundary b3 = new Boundary(width-5, height-5, width-5, 5,WALL);
+  Boundary b3 = new Boundary(width-5, height-5, width-5, 5, WALL);
   Boundary b4 = new Boundary(width-5, height-5, 5, height-5, WALL);
   qTree.insert(new Line(b1));
   qTree.insert(new Line(b2));
@@ -246,8 +239,11 @@ public void buildGlass(float x, float y) {
       lastBPoint = new PVector(x, y);
     }
   } else if (building==GLASS) {
-    if (firstBPoint != null && lastBPoint != null)
-      boundaries.add(new Boundary(lastBPoint, firstBPoint, GLASS));
+    if (firstBPoint != null && lastBPoint != null){
+      Boundary b = new Boundary(lastBPoint, firstBPoint, GLASS);
+      boundaries.add(b);
+      qTree.insert(new Line(b));
+    }
     lastBPoint = null;
     firstBPoint = null;
     bPoints.clear();
@@ -287,6 +283,6 @@ public void drawHUD() {
   text("QUADTREE: "+QUADTREE, 5, 80);
   text("BOUNCES: "+maxBounces, 5, 100);
   text("TRACES: "+traceCount+"/"+traces, 5, 120);
-  text("LEFT CLICK: Move\nRIGHT CLICK: Point\nCTRL+LCLICK: Add Glass\nSHIFT+RCLICK: Add Wall\nUP/DOWN: Traces\n+/-: Bounces\nC: Clear\nR: Reset Traces\nT: Point/Spot\nW: Generate Wall\nG: Generate Glass\nP: Load Prism\nF: Fresnel"+
+  text("LEFT CLICK: Move\nRIGHT CLICK: Point\nCTRL+LCLICK: Add Glass\nSHIFT+RCLICK: Add Wall\nUP/DOWN: Traces\n+/-: Bounces\nC: Clear\nR: Reset Traces\nT: Change Light\nW: Generate Wall\nG: Generate Glass\nF: Fresnel"+
     "\nN: Noise\nQ: Quadtree\nH: HUD ON/OFF", width-175, 20);
 }

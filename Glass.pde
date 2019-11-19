@@ -9,8 +9,8 @@ class Glass{
     //TODO: add concave option
     if(isLense){
       sides = sides/2;
-      
     }
+    
     //Make sure our object has at least 3 sides
     if(sides<3)sides = 3;
     
