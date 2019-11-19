@@ -21,10 +21,10 @@ class Glass{
       p[i] = rotate(sin(div)*w+cx, cos(div)*h+cy, cx, cy, angle);
     }
     for(int i = 1; i<sides; i++){
-      boundaries.add(new Boundary(p[i].x, p[i].y, p[i-1].x, p[i-1].y, true));
+      boundaries.add(new Boundary(p[i].x, p[i].y, p[i-1].x, p[i-1].y, GLASS));
     }
     //Redo our last boundary to ensure the it follows the normals
-    boundaries.add(new Boundary(p[0].x, p[0].y, p[sides-1].x, p[sides-1].y, true));
+    boundaries.add(new Boundary(p[0].x, p[0].y, p[sides-1].x, p[sides-1].y, GLASS));
     
   }
   private PVector rotate(float x, float y, float cx, float cy, float theta){

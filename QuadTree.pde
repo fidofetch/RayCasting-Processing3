@@ -13,34 +13,35 @@ class Line {
     this.y1 = y1;
     this.x2 = x2;
     this.y2 = y2;
-    this.b = null;
+    this.b = new Boundary(0,0,0,0,NOTHING);
   }
-  
-  public boolean containsLine(Line line) {
+
+  public Point intersectsLine(Line line) {
     float angle = atan2(y2-y1, x2-x1);
     PVector dir = PVector.fromAngle(angle);
     float lX1 = line.x1;
     float lY1 = line.y1;
     float lX2 = line.x2;
     float lY2 = line.y2;
-    
+
     float x3 = x1;
     float y3 = y1;
     float x4 = x1 + dir.x;
     float y4 = y1 + dir.y;
-    
+
     float den = (lX1 - lX2) * (y3 - y4)  - (lY1 - lY2) * (x3 - x4);
-    if(den == 0) return false;
-    
+    if (den == 0) return null;
+
     float t = ((lX1 - x3) * (y3 - y4) - (lY1-y3) * (x3-x4))/den;
     float u = -((lX1 - lX2) * (lY1 - y3) - (lY1-lY2) * (lX1-x3))/den;
-    if(t>0 && t<1 && u > 0){
-      return true;
+    if (t>0 && t<1 && u > 0) {
+      PVector pt = new PVector();
+      pt.x = lX1 + t * (lX2 - lX1);
+      pt.y = lY1 + t * (lY2 - lY1);
+      return new Point(pt, line.b);
     }
-    return false;
+    return null;
   }
-  
-    
 }
 
 class Rectangle {
@@ -53,6 +54,7 @@ class Rectangle {
     this.h = h;
     this.w = w;
   }
+  
   public boolean containsLine(Line line) {
     float minX = cx-w;
     float maxX = cx+w;
@@ -76,32 +78,13 @@ class Rectangle {
 
     return false;
   }
-  
-  public boolean intersects(Line line){
-    //Ray-AABB Intersect
-    float dir = atan2(line.y2-line.y1,line.x2-line.x1);
-    float tmin = ((cx-w)-line.x2)/cos(dir);
-    float tmax = ((cx+w)-line.x2)/cos(dir);
-    
-    if(tmin>tmax){
-      float temp = tmin;
-      tmin = tmax;
-      tmax = temp;
-    }
-    
-    float tymin = ((cy-h)-line.y2)/sin(dir);
-    float tymax = ((cy+h)-line.y2)/sin(dir);
-    
-    if(tymin>tymax){
-      float temp = tymin;
-      tymin = tymax;
-      tymax = temp;
-    }
-    
-    if(tmin>tymax||tymin>tmax) return false;
-    
-    return true;  
-     
+
+  public boolean intersects(Line line) {
+    if((line.intersectsLine(new Line(cx-w, cy-h, cx+w, cy-h))!=null||
+      line.intersectsLine(new Line(cx+w, cy-h, cx+w, cy+h))!=null||
+      line.intersectsLine(new Line(cx+w, cy+h, cx-w, cy+h))!=null||
+      line.intersectsLine(new Line(cx-w, cy+h, cx-w, cy-h))!=null)) return true;
+    return false;
   }
 }
 
@@ -111,7 +94,7 @@ class QuadTree {
   Rectangle boundary;
   QuadTree northWest, northEast, southWest, southEast;
   ArrayList<Line> lines = new ArrayList<Line>();
-  
+
   QuadTree(Rectangle boundary, int capacity) {
     this.boundary = boundary;
     this.cap = capacity;
@@ -121,7 +104,7 @@ class QuadTree {
     if (!boundary.containsLine(l)) {
       return false;
     }
-    
+
     if (lines.size() < cap && northWest == null) {
       lines.add(l);
       return true;
@@ -150,14 +133,16 @@ class QuadTree {
     southEast = new QuadTree(new Rectangle(cx+w/2, cy+h/2, w/2, h/2), cap);
   }
 
-  public ArrayList<Boundary> query(Line line) {
-    ArrayList<Boundary> linesInRange = new ArrayList<Boundary>();
+  public ArrayList<Point> query(Line line) {
+    ArrayList<Point> linesInRange = new ArrayList<Point>();
     if (!boundary.intersects(line)) return linesInRange; //empty array
     intersect = true;
     for (Line l : lines) {
-      if(line.containsLine(l)){
-       linesInRange.add(l.b);
-      }
+      //if (line.containsLine(l)) {
+      //  linesInRange.add(l.b);
+      //}
+      Point pt = line.intersectsLine(l);
+      if(!(pt == null)) linesInRange.add(pt);
     }
 
     if (northWest==null)
@@ -172,7 +157,7 @@ class QuadTree {
   }
 
   public void show() {
-    if(!intersect)stroke(255);
+    if (!intersect)stroke(255);
     else stroke(150, 255, 255);
     noFill();
     rectMode(RADIUS);
@@ -186,8 +171,8 @@ class QuadTree {
     intersect = false;
     rectMode(CORNER);
   }
-  
-  public void clear(){
+
+  public void clear() {
     lines.clear();
     northWest = null;
     northEast = null;

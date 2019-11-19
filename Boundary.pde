@@ -1,36 +1,38 @@
 class Boundary{
   PVector a, b;
-  boolean isGlass = false;
+  private PVector normal;
+  private int material = WALL;
   Boundary(float x1, float y1, float x2, float y2){
-    a = new PVector(x1, y1);
-    b = new PVector(x2, y2);
+     this(x1, y1, x2, y2, WALL);
   }
   
-  Boundary(PVector a, PVector b, Boolean isGlass){
+  Boundary(PVector a, PVector b, int material){
     this.a = a;
     this.b = b;
-    this.isGlass = isGlass;
+    this.normal = PVector.fromAngle(atan2(b.y-a.y,b.x-a.x)-PI/2);
+    this.material = material;
   }
   
   Boundary(PVector a, PVector b){
-    this(a,b,false);
+    this(a,b,WALL);
   }
-  Boundary(float x1, float y1, float x2, float y2, Boolean isGlass){
+  Boundary(float x1, float y1, float x2, float y2, int material){
     a = new PVector(x1, y1);
     b = new PVector(x2, y2);
-    this.isGlass = isGlass;
+    normal= PVector.fromAngle(atan2(b.y-a.y,b.x-a.x)-PI/2);
+    this.material = material;
   }
   
   public Boundary copy(){
-    return new Boundary(a.x, a.y, b.x, b.y, isGlass);
+    return new Boundary(a.x, a.y, b.x, b.y, material);
   }
   
-  public void setGlass(boolean b){ isGlass = b;}
-  public boolean isGlass(){return isGlass;}
+  public void setGlass(int m){ material = m;}
+  public int isGlass(){return material;}
   
   public void show(){
-    
-    if(!isGlass)stroke(150);
+    if(material == NOTHING) return;
+    if(material == GLASS)stroke(150);
     else stroke(150, 100, 255);
     line(a.x, a.y, b.x, b.y);
   }

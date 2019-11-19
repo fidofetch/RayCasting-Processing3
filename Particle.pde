@@ -56,51 +56,42 @@ class Particle {
     isSpot = true;
     float dir = atan2(pt.y-rays.get(rays.size()/2).pos.y, pt.x-rays.get(rays.size()/2).pos.x);
     for (int i = 0; i<rays.size(); i++) {
-      rays.get(i).setDir(radians(i%10+random(-1,1))+dir);
+      rays.get(i).setDir(radians(i%10+random(-1, 1))+dir);
     }
   }
 
-  public void look(ArrayList<Boundary> walls) {
+  public void look() {
     for (Ray ray : rays) {
       ray.changeColor();
-      PVector closest = null;
-      Boundary iWall = null;
+      Point pt = null;
       float record = 9999999;
 
-      for (Boundary wall : walls) {
-        PVector pt = ray.cast(wall);
-        if (pt!=null) {
-          float d = PVector.dist(pos, pt);
-          if (d<record) {
-            record = d;
-            closest = pt;
-            iWall = wall.copy();
-          }
+      ArrayList<Point> points = getPoints(ray.pos, ray.dir.heading()-PI);
+      for (Point point : points) {
+        float d = PVector.dist(pos, point.pos);
+        if (d<record) {
+          record = d;
+          pt = point;
         }
       }
       stroke(ray.col, brightness);
-      if (closest != null) {
-        line(pos.x, pos.y, closest.x, closest.y);
-        trace(ray, walls, ray.pos, iWall, closest, maxBounces);
+      if (pt != null) {
+        line(pos.x, pos.y, pt.pos.x, pt.pos.y);
+        trace(ray, ray.pos, pt, maxBounces);
       }
     }
   }
 
-  private void trace(Ray ray, ArrayList<Boundary> walls, PVector prevPos, Boundary iWall, PVector prevCollision, int bounces) {
-    if(bounces<=0)return;
-    Boundary nWall = null; //what wall do we need to pass to the next iteration
-
-    float noise = NOISE?random(-.01, .01):0;
+  private void trace(Ray ray, PVector prevPos, Point prevCollision, int bounces) {
+    if (bounces<=0)return;
 
     ///////////////////////////////////////////////////////////////////
     // REFLECTION EQUATION
     //////////////////////////////////////////////////////////////////
-    float nAngle = atan2(iWall.b.y - iWall.a.y, iWall.b.x - iWall.a.x)-PI/2; //Calculate the angle of the wall and rotate the normal by 90
-    float iAngle = atan2(prevPos.y-prevCollision.y, prevPos.x - prevCollision.x); //Get the incident angle
-    PVector N = PVector.fromAngle(nAngle); //Normal Vector
-    PVector n = PVector.fromAngle(nAngle); //Second Normal Vector for Refraction
+    float iAngle = atan2(prevPos.y-prevCollision.pos.y, prevPos.x - prevCollision.pos.x); //Get the incident angle
+    PVector N = prevCollision.getNormal().copy();
+    PVector n = prevCollision.getNormal().copy();
     PVector I = PVector.fromAngle(iAngle); //Incident Vector
-    float cosi = constrain(PVector.dot(N, I), -1, 1); //The cos of the angle between I and N
     PVector B = PVector.sub(I, PVector.mult(N, PVector.dot(I, N)*2)); //Our Reflection angle
     float refractionA = B.heading();
     float kr = 1;
@@ -109,8 +100,12 @@ class Particle {
     float etai = 1;
     //IOR calculated using ORT
     float IOR = 1.62;
-    float etat = IOR+((DP-ray.wavelength)*C)/(ABBE_GLASS*DP*ray.wavelength*ray.wavelength);
-    if (iWall.isGlass) {
+    
+    
+    //GLASS CALCULATIONS
+    if (prevCollision.b.material == GLASS) {
+      float cosi = constrain(PVector.dot(N, I), -1, 1); //The cos of the angle between I and N
+      float etat = IOR+((DP-ray.wavelength)*C)/(ABBE_GLASS*DP*ray.wavelength*ray.wavelength);
       /////////////////////////////////////////////////////////////////
       //FRESNEL EQUATION
       /////////////////////////////////////////////////////////////////
@@ -148,51 +143,48 @@ class Particle {
       //If k is negative we are at our critical angle and the equation breaks down, just treat as reflection
       if (k<0) refractionA = B.heading();
     }
+    //Generate Noise
+    float noise = prevCollision.getMaterial()==WALL && NOISE?random(-.2,.2):0;
+
     //Draw the normals
     if (DEBUG_NORMAL == true) {
       stroke(255, 255, 255, 1000);
-      line(prevCollision.x, prevCollision.y, prevCollision.x+cos(N.heading())*20, prevCollision.y+sin(N.heading())*20);
+      line(prevCollision.pos.x, prevCollision.pos.y, prevCollision.pos.x+cos(N.heading())*20, prevCollision.pos.y+sin(N.heading())*20);
     }
     //Should we split the ray due to fresnel
-    int split = kr<1 && iWall.isGlass() && FRESNEL ? 2 : 1;
+    int split = kr<1 && prevCollision.b.material == GLASS && FRESNEL ? 2 : 1;
     Ray[] rays = new Ray[split];
-    
+
     for (int i = 0; i<split; i++) {
       rays[i] = ray.copy();
-      PVector closest = null;
       float record = 9999999;
       float angle = refractionA;
+      Point pt = null;
       if (i==0 && kr<1 && FRESNEL)angle = B.heading(); 
-      ArrayList<Boundary> w = walls;
-      if(QUADTREE) w = getWalls(prevCollision, angle);
-      for (Boundary wall : w) {
-        PVector pt = null;
-        //If we hit the same wall twice just ignore it
-        if (wall.a.x == iWall.a.x && wall.a.y == iWall.a.y && wall.b.x == iWall.b.x && wall.b.y == iWall.b.y) continue;
-        pt = rays[i].bounce(prevCollision, angle+PI+noise, wall);
-        //If we hit something do a depth check
-        if (pt!=null) {
-          float d = PVector.dist(prevCollision, pt);
-          if (d<record) {
-            record = d;
-            closest = pt;
-            nWall = wall.copy();
-          }
+      ArrayList<Point> points = getPoints(prevCollision.pos, angle+noise);
+      for (Point point : points) {
+        //If we hit the same wall again don't bounce off of it
+        if (point.b.a.equals(prevCollision.b.a)&&point.b.b.equals(prevCollision.b.b)) continue;
+        float d = PVector.dist(prevCollision.pos, point.pos);
+        if (d<record) {
+          println(d);
+          record = d;
+          pt = point;
         }
       }
 
-      if (closest != null && nWall != null) {
+      if (pt != null) {
         kr = i-kr;
         if (kr<0)kr=-kr;
         if (!FRESNEL) kr = 1;
         //Lower our light per bounce
         float alpha = rays[i].alpha/1.2;
         //Don't dim light that is transmitted
-        if (iWall.isGlass() || kr<1) alpha = map(kr, 0, 1, 0, alpha);
-        
+        if (pt.b.material==GLASS || kr<1) alpha = map(kr, 0, 1, 0, alpha);
+
         stroke(ray.col, alpha);
-        line(prevCollision.x, prevCollision.y, closest.x, closest.y);
-        
+        line(prevCollision.pos.x, prevCollision.pos.y, pt.pos.x, pt.pos.y);
+
         bounces--;
         int krBounces = bounces;
         rays[i].alpha = alpha;
@@ -200,15 +192,15 @@ class Particle {
           rays[i].alpha = 0;
           krBounces = 0;
         }
-        trace(rays[i], walls, prevCollision, nWall, closest, krBounces);
+        trace(rays[i], prevCollision.pos, pt, krBounces);
       }
     }
     return;
   }
-  
-  private ArrayList<Boundary> getWalls(PVector pos, float dir){
-    float cx = abs(pos.x + cos(dir));
-    float cy = abs(pos.y + sin(dir));
-    return qTree.query(new Line(abs(cx), abs(cy), pos.x, pos.y));
+
+  private ArrayList<Point> getPoints(PVector pos, float dir) {
+    float px = abs(pos.x + cos(dir));
+    float py = abs(pos.y + sin(dir));
+    return qTree.query(new Line(abs(px), abs(py), pos.x, pos.y));
   }
 }
