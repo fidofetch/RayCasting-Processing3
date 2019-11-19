@@ -140,7 +140,7 @@ abstract class Light {
       if (pt != null) {
         //Get our kr for fresnel reflection is kr refraction is 1-kr
         kr = i-kr;
-        abs(kr);
+        if(kr<0)kr=-kr;
         if (!FRESNEL) kr = 1;
         
         //Lower our light per bounce
